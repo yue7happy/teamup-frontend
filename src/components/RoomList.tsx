@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useMemo } from 'react';
 import { RoomContext } from '../context/RoomContext';
 import { UserContext } from '../context/UserContext';
 
@@ -9,12 +9,10 @@ const RoomList: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   
   // 获取用户当前所在的房间
-  const getCurrentRoom = () => {
+  const currentRoom = useMemo(() => {
     if (!currentUser) return null;
     return rooms.find(room => room.members.includes(currentUser.id));
-  };
-  
-  const currentRoom = getCurrentRoom();
+  }, [currentUser, rooms]);
 
   const handleCreateRoom = () => {
     if (newRoomName.trim()) {
