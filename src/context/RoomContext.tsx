@@ -20,7 +20,35 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   
   const [rooms, setRooms] = useState<Room[]>(() => {
     const storedRooms = localStorage.getItem('rooms');
-    return storedRooms ? JSON.parse(storedRooms) : [];
+    if (storedRooms) {
+      const parsedRooms = JSON.parse(storedRooms);
+      // 检查是否存在大厅房间，如果不存在则添加
+      const hasLobby = parsedRooms.some((room: Room) => room.name === '大厅');
+      if (!hasLobby) {
+        const lobbyRoom: Room = {
+          id: 'lobby',
+          name: '大厅',
+          creatorId: 'system',
+          status: 'active',
+          members: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        return [lobbyRoom, ...parsedRooms];
+      }
+      return parsedRooms;
+    }
+    // 默认创建大厅房间
+    const lobbyRoom: Room = {
+      id: 'lobby',
+      name: '大厅',
+      creatorId: 'system',
+      status: 'active',
+      members: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    return [lobbyRoom];
   });
   
   const [memberStatuses, setMemberStatuses] = useState<MemberStatus[]>(() => {
@@ -89,6 +117,47 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentUser, rooms, memberStatuses]);
 
+  // 当用户登录时，自动加入大厅房间
+  useEffect(() => {
+    if (currentUser) {
+      const lobbyRoom = rooms.find(room => room.name === '大厅');
+      if (lobbyRoom && !lobbyRoom.members.includes(currentUser.id)) {
+        // 先从所有其他房间移除用户
+        const updatedRooms = rooms.map(r => {
+          if (r.id === lobbyRoom.id) {
+            return {
+              ...r,
+              members: [...r.members, currentUser.id],
+              updatedAt: Date.now(),
+            };
+          } else {
+            return {
+              ...r,
+              members: r.members.filter(memberId => memberId !== currentUser.id),
+              updatedAt: Date.now(),
+            };
+          }
+        });
+        
+        setRooms(updatedRooms);
+        
+        // 更新成员状态
+        const updatedMemberStatuses = memberStatuses.filter(
+          status => status.userId !== currentUser.id
+        );
+        
+        const newMemberStatus: MemberStatus = {
+          userId: currentUser.id,
+          roomId: lobbyRoom.id,
+          joinedAt: Date.now(),
+          lastActive: Date.now(),
+        };
+        
+        setMemberStatuses([...updatedMemberStatuses, newMemberStatus]);
+      }
+    }
+  }, [currentUser, rooms, memberStatuses]);
+
   const createRoom = (name: string) => {
     if (!currentUser) return;
     
@@ -125,14 +194,28 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // 检查用户是否已经在房间中
     const room = rooms.find(r => r.id === roomId);
     if (room && !room.members.includes(currentUser.id)) {
-      const updatedRoom = {
-        ...room,
-        members: [...room.members, currentUser.id],
-        updatedAt: Date.now(),
-      };
+      // 先从所有其他房间移除用户
+      const updatedRooms = rooms.map(r => {
+        if (r.id === roomId) {
+          return {
+            ...r,
+            members: [...r.members, currentUser.id],
+            updatedAt: Date.now(),
+          };
+        } else {
+          return {
+            ...r,
+            members: r.members.filter(memberId => memberId !== currentUser.id),
+            updatedAt: Date.now(),
+          };
+        }
+      });
       
-      setRooms(prevRooms => 
-        prevRooms.map(r => r.id === roomId ? updatedRoom : r)
+      setRooms(updatedRooms);
+      
+      // 更新成员状态
+      const updatedMemberStatuses = memberStatuses.filter(
+        status => status.userId !== currentUser.id
       );
       
       const newMemberStatus: MemberStatus = {
@@ -142,7 +225,7 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastActive: Date.now(),
       };
       
-      setMemberStatuses(prevStatuses => [...prevStatuses, newMemberStatus]);
+      setMemberStatuses([...updatedMemberStatuses, newMemberStatus]);
     }
   };
 
