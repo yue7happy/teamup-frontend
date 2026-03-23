@@ -182,15 +182,14 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const joinRoom = (roomId: string) => {
     if (!currentUser) return;
     
-    // 检查用户是否已经在房间中
     const room = rooms.find(r => r.id === roomId);
-    if (room && !room.members.includes(currentUser.id)) {
+    if (room) {
       // 先从所有其他房间移除用户
       const updatedRooms = rooms.map(r => {
         if (r.id === roomId) {
           return {
             ...r,
-            members: [...r.members, currentUser.id],
+            members: [...new Set([...r.members, currentUser.id])],
             updatedAt: Date.now(),
           };
         } else {
