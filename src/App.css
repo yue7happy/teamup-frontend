@@ -273,6 +273,12 @@ body {
   border-color: #0071e3;
 }
 
+.room-item.active {
+  background-color: rgba(0, 113, 227, 0.1);
+  border-color: #0071e3;
+  font-weight: 500;
+}
+
 .room-info h4 {
   font-size: 16px;
   font-weight: 500;

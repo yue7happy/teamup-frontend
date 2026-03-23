@@ -7,6 +7,14 @@ const RoomList: React.FC = () => {
   const { currentUser } = useContext(UserContext);
   const [newRoomName, setNewRoomName] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  
+  // 获取用户当前所在的房间
+  const getCurrentRoom = () => {
+    if (!currentUser) return null;
+    return rooms.find(room => room.members.includes(currentUser.id));
+  };
+  
+  const currentRoom = getCurrentRoom();
 
   const handleCreateRoom = () => {
     if (newRoomName.trim()) {
@@ -58,11 +66,11 @@ const RoomList: React.FC = () => {
         {rooms.map((room) => (
           <div
             key={room.id}
-            className="room-item"
+            className={`room-item ${currentRoom?.id === room.id ? 'active' : ''}`}
             onDoubleClick={() => handleDoubleClick(room.id)}
           >
             <div className="room-info">
-              <h4>{room.name}</h4>
+              <h4>{room.name} {currentRoom?.id === room.id && '(当前)'}</h4>
               <p>成员: {room.members.length}</p>
             </div>
             {(currentUser?.id === room.creatorId || currentUser?.isAdmin) && (
