@@ -23,7 +23,7 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (storedRooms) {
       const parsedRooms = JSON.parse(storedRooms);
       // 检查是否存在大厅房间，如果不存在则添加
-      const hasLobby = parsedRooms.some((room: Room) => room.name === '大厅');
+      const hasLobby = parsedRooms.some((room: Room) => room.id === 'lobby');
       if (!hasLobby) {
         const lobbyRoom: Room = {
           id: 'lobby',
@@ -120,7 +120,7 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 当用户登录时，自动加入大厅房间
   useEffect(() => {
     if (currentUser) {
-      const lobbyRoom = rooms.find(room => room.name === '大厅');
+      const lobbyRoom = rooms.find(room => room.id === 'lobby');
       if (lobbyRoom && !lobbyRoom.members.includes(currentUser.id)) {
         // 先从所有其他房间移除用户
         const updatedRooms = rooms.map(r => {
