@@ -28,6 +28,19 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return storedMemberStatuses ? JSON.parse(storedMemberStatuses) : [];
   });
 
+  // 清理无效成员（确保成员ID都对应有效用户）
+  useEffect(() => {
+    const validUserIds = new Set(users.map(user => user.id));
+    const updatedRooms = rooms.map(room => ({
+      ...room,
+      members: room.members.filter(memberId => validUserIds.has(memberId))
+    }));
+    
+    if (JSON.stringify(updatedRooms) !== JSON.stringify(rooms)) {
+      setRooms(updatedRooms);
+    }
+  }, [users, rooms]);
+
   useEffect(() => {
     localStorage.setItem('rooms', JSON.stringify(rooms));
   }, [rooms]);
