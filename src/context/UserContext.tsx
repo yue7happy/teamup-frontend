@@ -1,191 +1,161 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { User, UserState, UserContextType } from '../types/user';
+import type { User, UserStatus } from '../types/user';
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
-
-export const useUser = () => {
-  const context = useContext(UserContext);
-  if (!context) {
-    throw new Error('useUser must be used within a UserProvider');
-  }
-  return context;
-};
-
-const initialOwner: User = {
-  id: 'user-1',
-  nickname: '紫罗兰',
-  password: '152720',
-  role: 'owner'
-};
-
-interface UserProviderProps {
-  children: ReactNode;
+interface UserContextType {
+  users: User[];
+  currentUser: User | null;
+  login: (username: string, password: string) => boolean;
+  logout: () => void;
+  addUser: (username: string) => void;
+  updateUserStatus: (status: UserStatus) => void;
+  changePassword: (oldPassword: string, newPassword: string) => boolean;
+  setAdminStatus: (userId: string, isAdmin: boolean) => void;
+  deleteUser: (userId: string) => void;
 }
 
-export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
-  const [state, setState] = useState<UserState>(() => {
-    // 尝试从localStorage加载数据
-    const savedUsers = localStorage.getItem('users');
-    if (savedUsers) {
-      try {
-        const parsedUsers = JSON.parse(savedUsers);
-        return {
-          users: parsedUsers,
-          currentUser: null,
-          isAuthenticated: false
-        };
-      } catch (error) {
-        // 如果解析失败，使用初始数据
-        return {
-          users: [initialOwner],
-          currentUser: null,
-          isAuthenticated: false
-        };
-      }
-    }
-    // 如果localStorage中没有数据，使用初始数据
-    return {
-      users: [initialOwner],
-      currentUser: null,
-      isAuthenticated: false
-    };
+export const UserContext = createContext<UserContextType>({
+  users: [],
+  currentUser: null,
+  login: () => false,
+  logout: () => {},
+  addUser: () => {},
+  updateUserStatus: () => {},
+  changePassword: () => false,
+  setAdminStatus: () => {},
+  deleteUser: () => {},
+});
+
+const initialUsers: User[] = [
+  {
+    id: '1',
+    username: '紫罗兰',
+    password: '152720',
+    isAdmin: true,
+    isOwner: true,
+    status: 'idle',
+    lastActive: Date.now(),
+  },
+];
+
+export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [users, setUsers] = useState<User[]>(() => {
+    const storedUsers = localStorage.getItem('users');
+    return storedUsers ? JSON.parse(storedUsers) : initialUsers;
+  });
+  
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem('currentUser');
+    return storedUser ? JSON.parse(storedUser) : null;
   });
 
   useEffect(() => {
-    localStorage.setItem('users', JSON.stringify(state.users));
-  }, [state.users]);
+    localStorage.setItem('users', JSON.stringify(users));
+  }, [users]);
 
   useEffect(() => {
-    if (state.currentUser) {
-      localStorage.setItem('currentUser', JSON.stringify(state.currentUser));
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
     } else {
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('chatHistory');
     }
-  }, [state.currentUser]);
+  }, [currentUser]);
 
-  // 离线清理功能：页面关闭或断网时从房间移除
+  // 监听存储事件，实现跨标签页同步
   useEffect(() => {
-    const handleBeforeUnload = () => {
-      // 这里可以添加清理逻辑，例如通知服务器用户离线
-      // 在实际项目中，可能需要发送请求到服务器
-      console.log('用户离线，清理资源');
-    };
-
-    // 监听localStorage变化，实现不同标签页之间的状态同步
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'users') {
-        try {
-          const parsedUsers = JSON.parse(e.newValue || '[]');
-          setState(prev => ({
-            ...prev,
-            users: parsedUsers
-          }));
-        } catch (error) {
-          console.error('解析用户数据失败:', error);
-        }
+        const updatedUsers = e.newValue ? JSON.parse(e.newValue) : [];
+        setUsers(updatedUsers);
+      }
+      if (e.key === 'currentUser' && !e.newValue) {
+        setCurrentUser(null);
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const login = (nickname: string, password: string): boolean => {
-    const user = state.users.find(u => u.nickname === nickname && u.password === password);
+  const login = (username: string, password: string): boolean => {
+    const user = users.find(u => u.username === username && u.password === password);
     if (user) {
-      setState(prev => ({
-        ...prev,
-        currentUser: user,
-        isAuthenticated: true
-      }));
+      const updatedUser = { ...user, lastActive: Date.now() };
+      setCurrentUser(updatedUser);
+      
+      // 更新用户列表中的最后活跃时间
+      setUsers(prevUsers => 
+        prevUsers.map(u => u.id === user.id ? updatedUser : u)
+      );
       return true;
     }
     return false;
   };
 
   const logout = () => {
-    setState(prev => ({
-      ...prev,
-      currentUser: null,
-      isAuthenticated: false
-    }));
-    // 清除聊天记录（这里简化处理，实际项目中可能需要更复杂的清理）
-    localStorage.removeItem('chatHistory');
+    setCurrentUser(null);
   };
 
-  const addUser = (nickname: string) => {
+  const addUser = (username: string) => {
     const newUser: User = {
       id: Date.now().toString(),
-      nickname,
+      username,
       password: '123456',
-      role: 'user'
+      isAdmin: false,
+      isOwner: false,
+      status: 'idle',
+      lastActive: Date.now(),
     };
-    setState(prev => ({
-      ...prev,
-      users: [...prev.users, newUser]
-    }));
+    setUsers(prevUsers => [...prevUsers, newUser]);
   };
 
-  const setAdmin = (userId: string, isAdmin: boolean) => {
-    if (state.currentUser?.role !== 'owner') return;
-    
-    setState(prev => ({
-      ...prev,
-      users: prev.users.map(user => 
-        user.id === userId 
-          ? { ...user, role: isAdmin ? 'admin' : 'user' }
-          : user
-      )
-    }));
+  const updateUserStatus = (status: UserStatus) => {
+    if (currentUser) {
+      const updatedUser = { ...currentUser, status, lastActive: Date.now() };
+      setCurrentUser(updatedUser);
+      setUsers(prevUsers => 
+        prevUsers.map(u => u.id === currentUser.id ? updatedUser : u)
+      );
+    }
   };
 
-  const changePassword = (userId: string, newPassword: string) => {
-    setState(prev => ({
-      ...prev,
-      users: prev.users.map(user => 
-        user.id === userId 
-          ? { ...user, password: newPassword }
-          : user
-      ),
-      currentUser: prev.currentUser?.id === userId 
-        ? { ...prev.currentUser, password: newPassword }
-        : prev.currentUser
-    }));
+  const changePassword = (oldPassword: string, newPassword: string): boolean => {
+    if (currentUser && currentUser.password === oldPassword) {
+      const updatedUser = { ...currentUser, password: newPassword };
+      setCurrentUser(updatedUser);
+      setUsers(prevUsers => 
+        prevUsers.map(u => u.id === currentUser.id ? updatedUser : u)
+      );
+      return true;
+    }
+    return false;
   };
 
-  const removeUser = (userId: string) => {
-    setState(prev => ({
-      ...prev,
-      users: prev.users.filter(user => user.id !== userId),
-      currentUser: prev.currentUser?.id === userId 
-        ? null
-        : prev.currentUser,
-      isAuthenticated: prev.currentUser?.id === userId 
-        ? false
-        : prev.isAuthenticated
-    }));
+  const setAdminStatus = (userId: string, isAdmin: boolean) => {
+    setUsers(prevUsers => 
+      prevUsers.map(u => u.id === userId ? { ...u, isAdmin } : u)
+    );
   };
 
-
-
-  const value: UserContextType = {
-    state,
-    login,
-    logout,
-    addUser,
-    setAdmin,
-    changePassword,
-    removeUser
+  const deleteUser = (userId: string) => {
+    setUsers(prevUsers => prevUsers.filter(u => u.id !== userId && !u.isOwner));
   };
 
   return (
-    <UserContext.Provider value={value}>
+    <UserContext.Provider
+      value={{
+        users,
+        currentUser,
+        login,
+        logout,
+        addUser,
+        updateUserStatus,
+        changePassword,
+        setAdminStatus,
+        deleteUser,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );
