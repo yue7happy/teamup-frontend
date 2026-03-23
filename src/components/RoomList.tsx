@@ -73,7 +73,7 @@ const RoomList: React.FC = () => {
               <h4>{room.name} {currentRoom?.id === room.id && '(当前)'}</h4>
               <p>成员: {room.members.length}</p>
             </div>
-            {(currentUser?.id === room.creatorId || currentUser?.isAdmin) && (
+            {room.id !== 'lobby' && (currentUser?.id === room.creatorId || currentUser?.isAdmin) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

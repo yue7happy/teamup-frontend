@@ -175,6 +175,9 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const deleteRoom = (roomId: string) => {
+    // 大厅房间不能被删除
+    if (roomId === 'lobby') return;
+    
     setRooms(prevRooms => prevRooms.filter(room => room.id !== roomId));
     setMemberStatuses(prevStatuses => prevStatuses.filter(status => status.roomId !== roomId));
   };
