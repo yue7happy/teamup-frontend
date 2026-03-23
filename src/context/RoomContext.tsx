@@ -183,16 +183,10 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const joinRoom = (roomId: string) => {
-    console.log('joinRoom called with roomId:', roomId);
-    if (!currentUser) {
-      console.log('No current user');
-      return;
-    }
-    console.log('Current user:', currentUser);
+    if (!currentUser) return;
     
     const room = rooms.find(r => r.id === roomId);
     if (room) {
-      console.log('Found room:', room);
       // 先从所有其他房间移除用户
       const updatedRooms = rooms.map(r => {
         if (r.id === roomId) {
@@ -210,7 +204,6 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       });
       
-      console.log('Updated rooms:', updatedRooms);
       setRooms(updatedRooms);
       
       // 更新成员状态
@@ -225,10 +218,7 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastActive: Date.now(),
       };
       
-      console.log('New member status:', newMemberStatus);
       setMemberStatuses([...updatedMemberStatuses, newMemberStatus]);
-    } else {
-      console.log('Room not found:', roomId);
     }
   };
 
