@@ -166,21 +166,12 @@ export const RoomProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       name,
       creatorId: currentUser.id,
       status: 'active',
-      members: [currentUser.id],
+      members: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     
     setRooms(prevRooms => [...prevRooms, newRoom]);
-    
-    const newMemberStatus: MemberStatus = {
-      userId: currentUser.id,
-      roomId: newRoom.id,
-      joinedAt: Date.now(),
-      lastActive: Date.now(),
-    };
-    
-    setMemberStatuses(prevStatuses => [...prevStatuses, newMemberStatus]);
   };
 
   const deleteRoom = (roomId: string) => {
