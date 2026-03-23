@@ -41,7 +41,16 @@ const initialUsers: User[] = [
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(() => {
     const storedUsers = localStorage.getItem('users');
-    return storedUsers ? JSON.parse(storedUsers) : initialUsers;
+    if (storedUsers) {
+      const parsedUsers = JSON.parse(storedUsers);
+      // 检查是否存在房主账号，如果不存在则添加
+      const hasOwner = parsedUsers.some((user: User) => user.isOwner);
+      if (!hasOwner) {
+        return [...parsedUsers, ...initialUsers];
+      }
+      return parsedUsers;
+    }
+    return initialUsers;
   });
   
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
